@@ -80,11 +80,9 @@ module Farsync
       while chunk = data.read(@chunk_size)
         chunk_hash = Digest::MD5.digest(chunk)
         comms.send(:next_chunk_digest, chunk_hash)
-        response = comms.receive([:have_chunk, :need_chunk])
-        case response.type
+        case comms.receive([:have_chunk, :need_chunk]).type
         when :have_chunk then next
-        when :need_chunk
-          comms.send(:next_chunk_content, chunk)
+        when :need_chunk then comms.send(:next_chunk_content, chunk)
         end
       end
       comms.send(:done)
@@ -105,14 +103,15 @@ module Farsync
         mode = File::CREAT|File::RDWR|File::BINARY
         File.open(File.basename(header.payload), mode) do |orig_file|
           while (received = comms.receive([:next_chunk_digest, :done])).type != :done
-            if chunk = scan_ahead_for_chunk_with_digest(orig_file, received.payload)
-              comms.send(:have_chunk)
-              new_file.write(chunk)
-            else
-              comms.send(:need_chunk)
-              content = comms.receive(:next_chunk_content)
-              new_file.write(content.payload)
-            end
+            new_file.write(
+              if chunk = scan_ahead_for_chunk_with_digest(orig_file, received.payload)
+                comms.send(:have_chunk)
+                chunk
+              else
+                comms.send(:need_chunk)
+                comms.receive(:next_chunk_content).payload
+              end
+            )
           end
           File.rename(new_file.path, orig_file.path)
         end
