@@ -105,8 +105,8 @@ RSpec.describe Farsync::Receiver do
 
   it "skips the chunk if the receiver has it" do
     expect_receive(:next_chunk_digest, Digest::MD5.digest(local_data))
-    expect_send(:have_chunk, "")
-    expect_receive(:done, "")
+    expect_send(:have_chunk)
+    expect_receive(:done)
     expect_finalize
     receiver.run
   end
@@ -114,9 +114,9 @@ RSpec.describe Farsync::Receiver do
   it "requests the chunk if we don't have it" do
     remote_data = "here is some different data"
     expect_receive(:next_chunk_digest, Digest::MD5.digest(remote_data))
-    expect_send(:need_chunk, "")
+    expect_send(:need_chunk)
     expect_receive(:next_chunk_content, remote_data)
-    expect_receive(:done, "")
+    expect_receive(:done)
     expect_finalize
     receiver.run
     expect(temp_file.string).to eq(remote_data)
@@ -129,11 +129,11 @@ RSpec.describe Farsync::Receiver do
     it "can add the second chunk" do
       remote_data = "12345"
       expect_receive(:next_chunk_digest, Digest::MD5.digest("12345"))
-      expect_send(:have_chunk, "")
+      expect_send(:have_chunk)
       expect_receive(:next_chunk_digest, Digest::MD5.digest("67890"))
-      expect_send(:need_chunk, "")
+      expect_send(:need_chunk)
       expect_receive(:next_chunk_content, "67890")
-      expect_receive(:done, "")
+      expect_receive(:done)
       expect_finalize
       receiver.run
       expect(temp_file.string).to eq(remote_data)
