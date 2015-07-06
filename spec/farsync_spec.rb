@@ -68,12 +68,12 @@ end
 RSpec.describe Farsync::Receiver do
 
   let(:chunk_size) { 100 }
-  let(:local_data) { "here is my local data" }
+  let(:receiver_data) { "here is my local data" }
   let(:filename) { "some filename" }
   let(:input) { double("input") }
   let(:output) { double("output") }
-  let(:local_file) {
-    StringIO.new(local_data, 'r').tap do |f|
+  let(:receiver_file) {
+    StringIO.new(receiver_data, 'r').tap do |f|
       allow(f).to receive(:path).and_return(filename)
     end
   }
@@ -94,17 +94,17 @@ RSpec.describe Farsync::Receiver do
   end
 
   def expect_finalize
-    expect(File).to receive(:rename).with(temp_file.path, local_file.path)
+    expect(File).to receive(:rename).with(temp_file.path, receiver_file.path)
   end
 
   before do
     expect_receive(:filename, filename)
-    expect(File).to receive(:open).with(filename, File::CREAT|File::RDWR|File::BINARY).and_yield(local_file)
+    expect(File).to receive(:open).with(filename, File::CREAT|File::RDWR|File::BINARY).and_yield(receiver_file)
     expect(Tempfile).to receive(:open).and_yield(temp_file)
   end
 
   it "skips the chunk if the receiver has it" do
-    expect_receive(:next_chunk_digest, Digest::MD5.digest(local_data))
+    expect_receive(:next_chunk_digest, Digest::MD5.digest(receiver_data))
     expect_send(:have_chunk)
     expect_receive(:done)
     expect_finalize
@@ -124,10 +124,10 @@ RSpec.describe Farsync::Receiver do
 
   context "with multiple chunks" do
     let(:chunk_size) { 5 }
-    let(:local_data) { "1234567890" }
+    let(:receiver_data) { "12345" }
 
     it "can add the second chunk" do
-      remote_data = "12345"
+      remote_data = "1234567890"
       expect_receive(:next_chunk_digest, Digest::MD5.digest("12345"))
       expect_send(:have_chunk)
       expect_receive(:next_chunk_digest, Digest::MD5.digest("67890"))
