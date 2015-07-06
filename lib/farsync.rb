@@ -125,8 +125,8 @@ module Farsync
 
     def scan_ahead_for_chunk_with_digest(file, digest)
       pos = file.tell
-      chunk = file.read(@chunk_size)
-      if Digest::MD5.digest(chunk) == digest
+      chunk = file.read(chunk_size)
+      if chunk && Digest::MD5.digest(chunk) == digest
         chunk
       else
         file.seek(pos) # still need the content
