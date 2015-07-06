@@ -37,11 +37,7 @@ module Farsync
         raise Error, "unexpected end of stream"
       end
       code, size = header.unpack("cN")
-      type = begin
-               TYPES[code]
-             rescue IndexError
-               raise Error, "invalid packet code #{code}"
-             end
+      type = TYPES.at(code) || raise(Error, "invalid packet code #{code}")
       new(type, stream.read(size).unpack('a*').first)
     end
   end
