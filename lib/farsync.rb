@@ -58,13 +58,13 @@ module Farsync
       end
     end
 
+    attr_reader :input, :output
+
     private
 
     def bad_packet(packet)
       raise IOError, "unexpected packet type: #{packet.type}"
     end
-
-    attr_reader :input, :output
   end
 
   class Sender
@@ -89,8 +89,6 @@ module Farsync
       end
       comms.send(:done)
     end
-
-    private
 
     attr_reader :data, :comms, :filename
   end
@@ -121,6 +119,8 @@ module Farsync
       end
     end
 
+    attr_reader :comms, :chunk_size
+
     private
 
     def scan_ahead_for_chunk_with_digest(file, digest)
@@ -133,7 +133,5 @@ module Farsync
         false
       end
     end
-
-    attr_reader :comms
   end
 end
