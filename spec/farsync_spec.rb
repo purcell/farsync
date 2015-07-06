@@ -122,21 +122,75 @@ RSpec.describe Farsync::Receiver do
     expect(temp_file.string).to eq(remote_data)
   end
 
-  context "with multiple chunks" do
+  describe "multiple chunks" do
     let(:chunk_size) { 5 }
-    let(:receiver_data) { "12345" }
 
-    it "can add the second chunk" do
-      remote_data = "1234567890"
-      expect_receive(:next_chunk_digest, Digest::MD5.digest("12345"))
-      expect_send(:have_chunk)
-      expect_receive(:next_chunk_digest, Digest::MD5.digest("67890"))
-      expect_send(:need_chunk)
-      expect_receive(:next_chunk_content, "67890")
-      expect_receive(:done)
-      expect_finalize
-      receiver.run
-      expect(temp_file.string).to eq(remote_data)
+    context "with a trailing chunk missing" do
+      let(:receiver_data) { "12345" }
+      let(:remote_data) { "1234567890" }
+
+      it "can add the second chunk" do
+        expect_receive(:next_chunk_digest, Digest::MD5.digest("12345"))
+        expect_send(:have_chunk)
+        expect_receive(:next_chunk_digest, Digest::MD5.digest("67890"))
+        expect_send(:need_chunk)
+        expect_receive(:next_chunk_content, "67890")
+        expect_receive(:done)
+        expect_finalize
+        receiver.run
+        expect(temp_file.string).to eq(remote_data)
+      end
+    end
+
+    context "with a leading chunk missing" do
+      let(:receiver_data) { "67890" }
+      let(:remote_data) { "1234567890" }
+
+      it "can insert the leading chunk" do
+        expect_receive(:next_chunk_digest, Digest::MD5.digest("12345"))
+        expect_send(:need_chunk)
+        expect_receive(:next_chunk_content, "12345")
+        expect_receive(:next_chunk_digest, Digest::MD5.digest("67890"))
+        expect_send(:have_chunk)
+        expect_receive(:done)
+        expect_finalize
+        receiver.run
+        expect(temp_file.string).to eq(remote_data)
+      end
+    end
+
+    context "with a wrong leading chunk" do
+      let(:receiver_data) { "2232567890" }
+      let(:remote_data) { "1234567890" }
+
+      it "can replace the leading chunk" do
+        expect_receive(:next_chunk_digest, Digest::MD5.digest("12345"))
+        expect_send(:need_chunk)
+        expect_receive(:next_chunk_content, "12345")
+        expect_receive(:next_chunk_digest, Digest::MD5.digest("67890"))
+        expect_send(:have_chunk)
+        expect_receive(:done)
+        expect_finalize
+        receiver.run
+        expect(temp_file.string).to eq(remote_data)
+      end
+    end
+
+    context "with leading junk" do
+      let(:receiver_data) { "2567890" }
+      let(:remote_data) { "1234567890" }
+
+      it "can replace the leading junk" do
+        expect_receive(:next_chunk_digest, Digest::MD5.digest("12345"))
+        expect_send(:need_chunk)
+        expect_receive(:next_chunk_content, "12345")
+        expect_receive(:next_chunk_digest, Digest::MD5.digest("67890"))
+        expect_send(:have_chunk)
+        expect_receive(:done)
+        expect_finalize
+        receiver.run
+        expect(temp_file.string).to eq(remote_data)
+      end
     end
   end
 end

@@ -124,13 +124,24 @@ module Farsync
     private
 
     def scan_ahead_for_chunk_with_digest(file, digest)
-      pos = file.tell
-      chunk = file.read(chunk_size)
-      if chunk && Digest::MD5.digest(chunk) == digest
-        chunk
-      else
-        file.seek(pos) # still need the content
-        false
+      initial_pos = file.tell
+      if data = file.read(chunk_size * 100)
+        each_chunk(data).with_index do |chunk, offset|
+          if Digest::MD5.digest(chunk) == digest
+            file.seek(initial_pos + offset + chunk_size)
+            return chunk
+          end
+        end
+      end
+      file.seek(initial_pos)
+      false
+    end
+
+    def each_chunk(string)
+      Enumerator.new do |enum|
+        (0...string.size).each do |i|
+          enum << string[i..(i+chunk_size)]
+        end
       end
     end
   end
