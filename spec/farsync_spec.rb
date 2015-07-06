@@ -93,28 +93,48 @@ RSpec.describe Farsync::Receiver do
     expect(output).to receive(:flush).ordered
   end
 
+  def expect_finalize
+    expect(File).to receive(:rename).with(temp_file.path, local_file.path)
+  end
+
   before do
     expect_receive(:filename, filename)
     expect(File).to receive(:open).with(filename, File::CREAT|File::RDWR|File::BINARY).and_yield(local_file)
     expect(Tempfile).to receive(:open).and_yield(temp_file)
   end
 
-  context "when receiving digests for the next chunk" do
-    it "skips the chunk if the receiver has it" do
-      expect_receive(:next_chunk_digest, Digest::MD5.digest(local_data))
-      expect_send(:have_chunk, "")
-      expect_receive(:done, "")
-      expect(File).to receive(:rename).with(temp_file.path, local_file.path)
-      receiver.run
-    end
+  it "skips the chunk if the receiver has it" do
+    expect_receive(:next_chunk_digest, Digest::MD5.digest(local_data))
+    expect_send(:have_chunk, "")
+    expect_receive(:done, "")
+    expect_finalize
+    receiver.run
+  end
 
-    it "requests the chunk if we don't have it" do
-      remote_data = "here is some different data"
-      expect_receive(:next_chunk_digest, Digest::MD5.digest(remote_data))
+  it "requests the chunk if we don't have it" do
+    remote_data = "here is some different data"
+    expect_receive(:next_chunk_digest, Digest::MD5.digest(remote_data))
+    expect_send(:need_chunk, "")
+    expect_receive(:next_chunk_content, remote_data)
+    expect_receive(:done, "")
+    expect_finalize
+    receiver.run
+    expect(temp_file.string).to eq(remote_data)
+  end
+
+  context "with multiple chunks" do
+    let(:chunk_size) { 5 }
+    let(:local_data) { "1234567890" }
+
+    it "can add the second chunk" do
+      remote_data = "12345"
+      expect_receive(:next_chunk_digest, Digest::MD5.digest("12345"))
+      expect_send(:have_chunk, "")
+      expect_receive(:next_chunk_digest, Digest::MD5.digest("67890"))
       expect_send(:need_chunk, "")
-      expect_receive(:next_chunk_content, remote_data)
+      expect_receive(:next_chunk_content, "67890")
       expect_receive(:done, "")
-      expect(File).to receive(:rename).with(temp_file.path, local_file.path)
+      expect_finalize
       receiver.run
       expect(temp_file.string).to eq(remote_data)
     end
