@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby -w
+
+$:.unshift(File.dirname(__FILE__) + "/../lib")
+require 'farsync'
+
+Farsync::Receiver.new(1024, STDIN, STDOUT).run

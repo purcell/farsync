@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby -w
+
+$:.unshift(File.dirname(__FILE__) + "/../lib")
+require 'farsync'
+
+filename = ARGV.first
+File.open(filename) do |file|
+  Farsync::Sender.new(1024, filename, file, STDIN, STDOUT).run
+end
