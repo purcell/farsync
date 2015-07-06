@@ -10,7 +10,7 @@ module Farsync
 
     attr_reader :type, :payload
 
-    def initialize(type, payload)
+    def initialize(type, payload="")
       @type = type
       @payload = payload
     end
@@ -91,7 +91,7 @@ module Farsync
           comms.send(:next_chunk_content, chunk)
         end
       end
-      comms.send(:done, "")
+      comms.send(:done)
     end
 
     private
@@ -112,10 +112,10 @@ module Farsync
         File.open(File.basename(header.payload), mode) do |orig_file|
           while (received = comms.receive([:next_chunk_digest, :done])).type != :done
             if chunk = scan_ahead_for_chunk_with_digest(orig_file, received.payload)
-              comms.send(:have_chunk, "")
+              comms.send(:have_chunk)
               new_file.write(chunk)
             else
-              comms.send(:need_chunk, "")
+              comms.send(:need_chunk)
               content = comms.receive(:next_chunk_content)
               new_file.write(content.payload)
             end
