@@ -42,7 +42,7 @@ module Farsync
     end
   end
 
-  class Comms
+  class PacketStream
     def initialize(input, output)
       @input = input
       @output = output
@@ -71,45 +71,45 @@ module Farsync
     def initialize(chunk_size, filename, data, input, output)
       @filename = filename
       @data = data
-      @comms = Comms.new(input, output)
+      @packets = PacketStream.new(input, output)
       @chunk_size = chunk_size
     end
 
     def run
-      comms.send(:filename, filename)
+      packets.send(:filename, filename)
       while chunk = data.read(@chunk_size)
         chunk_hash = Digest::MD5.digest(chunk)
-        comms.send(:next_chunk_digest, chunk_hash)
-        case comms.receive([:have_chunk, :need_chunk]).type
+        packets.send(:next_chunk_digest, chunk_hash)
+        case packets.receive([:have_chunk, :need_chunk]).type
         when :have_chunk then next
-        when :need_chunk then comms.send(:next_chunk_content, chunk)
+        when :need_chunk then packets.send(:next_chunk_content, chunk)
         end
       end
-      comms.send(:done)
+      packets.send(:done)
     end
 
-    attr_reader :data, :comms, :filename
+    attr_reader :data, :packets, :filename
   end
 
   class Receiver
     def initialize(chunk_size, input, output)
-      @comms = Comms.new(input, output)
+      @packets = PacketStream.new(input, output)
       @chunk_size = chunk_size
     end
 
     def run
-      header = comms.receive(:filename)
+      header = packets.receive(:filename)
       Tempfile.open('farsync') do |new_file|
         mode = File::CREAT|File::RDWR|File::BINARY
         File.open(File.basename(header.payload), mode) do |orig_file|
-          while (received = comms.receive([:next_chunk_digest, :done])).type != :done
+          while (received = packets.receive([:next_chunk_digest, :done])).type != :done
             new_file.write(
               if chunk = scan_ahead_for_chunk_with_digest(orig_file, received.payload)
-                comms.send(:have_chunk)
+                packets.send(:have_chunk)
                 chunk
               else
-                comms.send(:need_chunk)
-                comms.receive(:next_chunk_content).payload
+                packets.send(:need_chunk)
+                packets.receive(:next_chunk_content).payload
               end
             )
           end
@@ -118,7 +118,7 @@ module Farsync
       end
     end
 
-    attr_reader :comms, :chunk_size
+    attr_reader :packets, :chunk_size
 
     private
 
