@@ -99,21 +99,19 @@ module Farsync
 
     def run
       header = packets.receive(:filename)
-      Tempfile.open('farsync') do |new_file|
-        mode = File::CREAT|File::RDWR|File::BINARY
-        File.open(File.basename(header.payload), mode) do |orig_file|
-          while (received = packets.receive([:next_chunk_digest, :done])).type != :done
-            new_file.write(
-              if chunk = scan_ahead_for_chunk_with_digest(orig_file, received.payload)
-                packets.send(:have_chunk)
-                chunk
-              else
-                packets.send(:need_chunk)
-                packets.receive(:next_chunk_content).payload
-              end
-            )
-          end
-          File.rename(new_file.path, orig_file.path)
+      filename = File.basename(header.payload)
+      with_rewritten_file(filename) do |orig_file, new_file|
+        while (received = packets.receive([:next_chunk_digest, :done])).type != :done
+          matching_chunk = scan_ahead_for_chunk_with_digest(orig_file, received.payload)
+          new_file.write(
+            if matching_chunk
+              packets.send(:have_chunk)
+              matching_chunk
+            else
+              packets.send(:need_chunk)
+              packets.receive(:next_chunk_content).payload
+            end
+          )
         end
       end
     end
@@ -121,6 +119,17 @@ module Farsync
     attr_reader :packets, :chunk_size
 
     private
+
+    def with_rewritten_file(orig_filename)
+      Tempfile.open('farsync') do |new_file|
+        mode = File::CREAT|File::RDWR|File::BINARY
+        File.open(orig_filename, mode) do |orig_file|
+          yield [orig_file, new_file]
+        end
+        new_file.flush
+        File.rename(new_file.path, orig_filename)
+      end
+    end
 
     def scan_ahead_for_chunk_with_digest(file, digest)
       initial_pos = file.tell
