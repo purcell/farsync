@@ -7,5 +7,7 @@ if [ -z "$FILE" ]; then
   exit 2
 fi
 
+echo "Original file size: $(stat -f '%z' "$FILE") bytes"
+echo "Transferring:"
 PATH=$THISDIR:$PATH join "send $FILE|pv -b" receive
-diff -q "$FILE" $(basename "$FILE") && echo "Files identical"
+diff -q "$FILE" "$(basename $FILE)" && echo "Files identical"
