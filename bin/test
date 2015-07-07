@@ -6,4 +6,6 @@ if [ -z "$FILE" ]; then
   echo "usage: $0 file-in-some-other-dir" >&2
   exit 2
 fi
-PATH=$THISDIR:$PATH join "send $@" receive
+
+PATH=$THISDIR:$PATH join "send $FILE|pv -b" receive
+diff -q "$FILE" $(basename "$FILE") && echo "Files identical"
