@@ -139,7 +139,7 @@ module Farsync
     def each_chunk(string)
       Enumerator.new do |enum|
         (0...string.size).each do |i|
-          enum << string[i..(i+chunk_size)]
+          enum << string[i..(i+chunk_size-1)]
         end
       end
     end
